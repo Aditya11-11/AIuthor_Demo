@@ -16,7 +16,7 @@ class RAGSystem:
         embeddings = []
         for doc in documents:
             res = self.genai_client.models.embed_content(
-                model="text-embedding-004",
+                model="text-embedding-004",# this is latest embedding model for text only is require multilanguage change this to text-multilanual-embedding-002
                 contents=doc,
                 config=types.EmbedContentConfig(task_type="RETRIEVAL_DOCUMENT")
             )
@@ -29,9 +29,9 @@ class RAGSystem:
             embeddings=embeddings
         )
 
-    def query(self, query_text: str, top_k: int = 5):
+    def query(self, query_text: str, top_k: int = 7):
         res = self.genai_client.models.embed_content(
-            model="text-embedding-004",
+            model="text-embedding-004", # same for multilingual query
             contents=query_text,
             config=types.EmbedContentConfig(task_type="RETRIEVAL_QUERY")
         )

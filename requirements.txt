@@ -4,4 +4,4 @@ pydantic
 reportlab
 python-docx
 python-dotenv
-google-generativeai # included for backward compatibility/migration transition
+google-generativeai

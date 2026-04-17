@@ -5,12 +5,10 @@ load_dotenv()
 
 # Model Settings
 PRIMARY_MODEL = os.getenv("PRIMARY_MODEL", "gemini-2.0-flash")
-CHEAP_MODEL = os.getenv("CHEAP_MODEL", "gemini-2.0-flash-lite")
 
 # Cost Estimation (Placeholder values)
 COST_PER_1K_TOKENS = {
     "gemini-2.0-flash": 0.0001,
-    "gemini-2.0-flash-lite": 0.00005
 }
 
 # Project Paths
