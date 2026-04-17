@@ -1,34 +1,25 @@
-# AIuthor - Agentic Book Writing System
+# AIuthor - Execution Docs
 
-AIuthor is an advanced multi-agent system designed to produce publication-ready books from a simple brief. It features grounded research, tonality presets, memory across chapters, and a dedicated humanizer to eliminate "AI tells."
+AIuthor is an agentic book writing system. To run it, follow these steps:
 
-## Architecture
-
-The system uses an **Orchestrator-Worker** pattern:
-1. **Planner**: Outlines the book.
-2. **Researcher**: Gathers facts (RAG-ready).
-3. **Writer**: Drafts chapters using memory and tonality.
-4. **Humanizer**: Refines prose to sound human.
-5. **Editor**: Polishes for flow and consistency.
-6. **Fact-Checker**: Validates claims.
-7. **Memory Keeper**: Maintains character bibels and callback indexes.
-8. **Assembler**: Generates PDF and DOCX.
-
-## Installation
-
+## 1. Setup
+Install requirements:
 ```bash
 pip install -r requirements.txt
 ```
 
-## Usage
+## 2. API Key
+Create a `.env` file in the root directory and add your key:
+```text
+GOOGLE_API_KEY=your_key_here
+PRIMARY_MODEL=Gemine_model
+```
 
+## 3. Run
+Generate a book with a single command:
 ```bash
-python main.py --topic "Personal Finance for Beginners" --reader "College Graduates" --tonality "Conversational"
+python3 main.py --topic "The Future of AI" --reader "General Public" --length 3 --tonality "Motivational"
 ```
 
-## Features
-
-- **Memory across chapters**: Fact registry and callback index ensure continuity.
-- **Tonality Presets**: 5 specific tones (Conversational, Academic, Storyteller, Motivational, Witty).
-- **Observability**: Detailed traces and cost logs for every run.
-```
+All generated files will be in the `output/` directory.
+For deep technical details, see [documentation.md](documentation.md).

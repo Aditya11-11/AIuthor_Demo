@@ -2,15 +2,7 @@ import os
 import json
 from typing import List, Dict, Any
 from src.memory.schema import BookBrief, FullBook, MemoryState, BookOutline, ChapterContent, FactRecord, DecisionLogEntry, TonalityFingerprint
-from src.agents.planner import PlannerAgent
-from src.agents.researcher import ResearcherAgent
-from src.agents.writer import WriterAgent
-from src.agents.humanizer import HumanizerAgent
-from src.agents.editor import EditorAgent
-from src.agents.fact_checker import FactCheckerAgent
-from src.agents.memory_keeper import MemoryKeeperAgent
-from src.agents.front_matter_agent import FrontMatterAgent
-from src.agents.back_matter_agent import BackMatterAgent
+from src.agents.unified_agent import *
 from src.assembler.pdf_gen import PDFGenerator
 from src.assembler.docx_gen import DOCXGenerator
 from src.utils.rag import RAGSystem
@@ -22,6 +14,7 @@ import re
 def clean_json(text: str) -> str:
     """Strip markdown code blocks and whitespace."""
     text = re.sub(r'```json\s*', '', text)
+    text = re.sub(r'```\s*', '', text)
     return text.strip()
 
 class Orchestrator:
@@ -131,18 +124,43 @@ class Orchestrator:
         book.back_matter = json.loads(back_json)
         
         # 4. Evals Run
-        eval_results = self.evals.check_structural_completeness(book.dict())
+        # Final tonality check on a sample of chapters
+        if book.chapters:
+            sample_prose = book.chapters[0].content
+            fidelity = self.evals.check_tonality_fidelity(sample_prose, brief.tonality.value, self.llm)
+            print(f"[Evals] Tonality Fidelity ({brief.tonality.value}): {fidelity}")
+
+        eval_results = self.evals.check_structural_completeness(book.model_dump())
         print(f"[Evals] Structural Completeness: {eval_results}")
+
+        # 5. Assemble and Save
+        print(f"[Assembler] Generating PDF and DOCX...")
+        self.pdf_gen.generate(book)
+        self.docx_gen.generate(book)
+        
+        # 6. Final Traces Collection
+        book.traces = self.llm.get_logs()["traces"]
         
         return book
 
     def repair_pipeline(self, book: FullBook, inserted_chapter_index: int) -> FullBook:
         """Test D: Self-healing repair logic for chapter insertion."""
         print(f"[Orchestrator] Triggering self-healing repair for chapter insertion at index {inserted_chapter_index}")
-        # 1. Regenerate TOC (implicit in Assembler, but we update outline)
-        # 2. Re-run Memory Keeper for the new chapter and all subsequent ones
-        # 3. Regenerate Back Matter (Glossary especially)
         
+        # 1. Update Chapter Numbers for all subsequent chapters
+        for i in range(inserted_chapter_index + 1, len(book.chapters)):
+            book.chapters[i].chapter_number = i + 1
+            
+        # 2. Re-run Memory Keeper for the new chapter and all subsequent ones to fix continuity
+        for i in range(inserted_chapter_index, len(book.chapters)):
+            ch = book.chapters[i]
+            memory_update_json = self.llm.call_llm(self.memory_keeper.execute(ch.content, book.memory, ch.chapter_number))
+            try:
+                book.memory = MemoryState(**json.loads(memory_update_json))
+            except Exception:
+                pass
+                
+        # 3. Regenerate Back Matter (Glossary/Index) to include new terms
         new_back_json = self.llm.call_llm(self.back_matter_agent.execute(book.brief, book.outline, book.memory))
         book.back_matter = json.loads(new_back_json)
         

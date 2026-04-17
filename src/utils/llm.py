@@ -23,14 +23,22 @@ class LLMInterface:
             contents=prompt,
             config=config
         )
-        self._add_trace(prompt, response.text, model_name)
+        
+        # Approximate token count (Gemini Flash prices: $0.075 / 1M in, $0.30 / 1M out)
+        input_tokens = len(prompt) // 4
+        output_tokens = len(response.text) // 4
+        cost = (input_tokens * 0.000000075) + (output_tokens * 0.00000030)
+        
+        self._add_trace(prompt, response.text, model_name, input_tokens + output_tokens, cost)
         return response.text
 
-    def _add_trace(self, prompt, response, model):
+    def _add_trace(self, prompt, response, model, tokens, cost):
         self.traces.append({
             "prompt": prompt,
             "response": response,
             "model": model,
+            "tokens": tokens,
+            "cost": cost,
             "timestamp": str(datetime.now())
         })
 
