@@ -1,5 +1,7 @@
+google-genai
+chromadb
+pydantic
 reportlab
 python-docx
-google-generativeai
-pydantic
 python-dotenv
+google-generativeai # included for backward compatibility/migration transition

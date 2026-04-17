@@ -1,7 +1,8 @@
-import google.generativeai as genai
 import os
 import json
 from src.config import PRIMARY_MODEL, CHEAP_MODEL
+from google import genai
+from google.genai import types
 
 class LLMInterface:
     def __init__(self):
@@ -9,22 +10,40 @@ class LLMInterface:
         self.total_cost = 0.0
         self.total_tokens = 0
         api_key = os.getenv("GOOGLE_API_KEY")
-        if api_key:
-            genai.configure(api_key=api_key)
+        if not api_key:
+            raise ValueError("GOOGLE_API_KEY environment variable is not set.")
+        
+        self.client = genai.Client(api_key=api_key)
         
     def call_llm(self, prompt: str, model_name: str = PRIMARY_MODEL, json_mode: bool = False) -> str:
-        # If no API key, return a mock response or use a dummy mechanism for development
-        if not os.getenv("GOOGLE_API_KEY"):
-            response_text = self._mock_response(prompt, model_name)
-            self._add_trace(prompt, response_text, model_name, 100, 0.00001) # Mock values
-            return response_text
-            
-        model = genai.GenerativeModel(model_name)
-        response = model.generate_content(prompt)
-        # Tracking would ideally use usage_metadata from response
-        # Using placeholder for now as mock or actual needs consistent API
-        self._add_trace(prompt, response.text, model_name, 500, 0.00005) 
+        config = None
+        if json_mode:
+            config = types.GenerateContentConfig(
+                response_mime_type="application/json"
+            )
+        
+        response = self.client.models.generate_content(
+            model=model_name,
+            contents=prompt,
+            config=config
+        )
+        
+        # Tracking (GenAI v2 usage tracking)
+        usage = response.usage_metadata
+        tokens = usage.total_token_count if usage else 0
+        cost = (tokens / 1000000) * 0.15 # Rough estimate for Flash 2.0
+        
+        self._add_trace(prompt, response.text, model_name, tokens, cost)
         return response.text
+
+    def embed_text(self, text: str, task_type: str = "RETRIEVAL_DOCUMENT") -> list:
+        """Get embeddings using Gemini."""
+        response = self.client.models.embed_content(
+            model="text-embedding-004",
+            contents=text,
+            config=types.EmbedContentConfig(task_type=task_type)
+        )
+        return response.embeddings[0].values
 
     def _add_trace(self, prompt, response, model, tokens, cost):
         self.traces.append({
@@ -33,7 +52,7 @@ class LLMInterface:
             "model": model,
             "tokens": tokens,
             "cost": cost,
-            "timestamp": os.path.getmtime(__file__) # placeholder
+            "timestamp": str(os.path.getmtime(__file__)) # placeholder
         })
         self.total_tokens += tokens
         self.total_cost += cost
@@ -44,59 +63,3 @@ class LLMInterface:
             "total_cost": self.total_cost,
             "traces": self.traces
         }
-
-    def _mock_response(self, prompt: str, model_name: str) -> str:
-        prompt_lower = prompt.lower()
-        if "planner" in prompt_lower:
-            return json.dumps({
-                "title": "The Unified Field of RAG",
-                "front_matter_plan": ["title", "copyright", "TOC", "introduction"],
-                "chapters": [
-                    {
-                        "chapter_number": 1,
-                        "title": "The Evolution of Retrieval",
-                        "summary": "From BM25 to Dense Vectors",
-                        "key_points": ["Sparse vs Dense", "Indexing strategy"],
-                        "estimated_word_count": 2500
-                    }
-                ],
-                "back_matter_plan": ["glossary", "about-the-author"]
-            })
-        if "front matter" in prompt_lower:
-            return json.dumps({
-                "half-title": "The Unified Field of RAG",
-                "title": "The Unified Field of RAG: A Journey",
-                "copyright": "ISBN 978-0-0000000-0-0, Edition 1.0, Rights: All Rights Reserved, CIP Block: ...",
-                "dedication": "To the researchers.",
-                "epigraph": "Retrieval is half the battle.",
-                "foreword": "...",
-                "preface": "...",
-                "acknowledgments": "...",
-                "introduction": "Welcome to the world of RAG."
-            })
-        if "back matter" in prompt_lower:
-            return json.dumps({
-                "afterword": "Final thoughts on RAG.",
-                "appendix": "Technical specs.",
-                "glossary": {"Vector Database": "A database that stores data as mathematical vectors."},
-                "references": ["Lewis et al., 2020", "ChromaDB Docs"],
-                "about-the-author": "AI experiment.",
-                "back-cover-copy": "Master RAG with this book."
-            })
-        if "researcher" in prompt_lower:
-            return json.dumps([
-                {"fact": "RAG combines retrieval with generative models.", "source": "Lewis et al. 2020", "confidence": 0.99}
-            ])
-        if "memory keeper" in prompt_lower:
-            return json.dumps({
-                "fact_registry": [{"fact": "RAG is state-of-the-art.", "source": "AI Weekly", "confidence": 0.98, "verified": True}],
-                "character_bible": [],
-                "callback_index": [],
-                "tonality_fingerprint": [],
-                "decision_log": []
-            })
-        if "editor" in prompt_lower or "humanizer" in prompt_lower or "writer" in prompt_lower:
-            return "Professional prose generated by the agent. This represents the high-quality humanized content of the book."
-        if "fact-checker" in prompt_lower:
-            return "PASS: All claims are backed by RAG context."
-        return "Standard prose response."
