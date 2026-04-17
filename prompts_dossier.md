@@ -1,47 +1,27 @@
 # AIuthor Prompts Dossier
 
-This document provides the full prompt engineering specification for the AIuthor agentic system.
-
 ## 1. Planner Agent
-**Purpose**: Generates a hierarchal book structure including front matter, body chapters, and back matter.
+**Purpose**: Generates book roadmap.
 **Inputs**: `BookBrief`.
 **Outputs**: `BookOutline` (JSON).
-**Prompt**:
-```text
-You are the Lead Planner for AIuthor.
-Architect a book based on:
-TOPIC: {topic}
-READER: {reader}
-TONAL PRESET: {tonality}
-
-STRICT ARCHITECTURE RULES:
-1. FRONT MATTER must include all standard components (copyright, TOC, introduction, etc.)
-2. BODY: Sequential chapters.
-3. BACK MATTER: Glossary, references, about-the-author.
-
-Output valid JSON matching BookOutline schema.
-```
 
 ## 2. Researcher Agent
-**Purpose**: Grounded fact retrieval.
-**Prompt**: "Extract facts for Chapter {chapter_number}: {title} based on context: {context}."
+**Purpose**: Fact grounded extraction from RAG context.
 
 ## 3. Writer Agent
-**Purpose**: Chapter generation.
-**Prompt**: "Write Chapter {chapter_number} in {tonality} tone for {reader}. Use facts: {facts}."
+**Purpose**: Initial prose generation.
 
 ## 4. Humanizer Agent
-**Purpose**: Eliminate AI tells.
-**Rules**: No "It's important to note", "delve into", "landscape of". Vary sentence rhythm.
+**Purpose**: GPT-to-Human conversion, rhythm variance, tell removal.
 
-## 5. Front Matter Agent
-**Purpose**: Legal and introductory components.
+## 5. Editor Agent
+**Purpose**: Tonal consistency and polish.
 
-## 6. Back Matter Agent
-**Purpose**: Glossary and references.
+## 6. Fact-Checker Agent
+**Purpose**: Grounding verification.
 
-## 7. Fact-Checker Agent
-**Purpose**: Grounding validation.
+## 7. Memory Keeper Agent
+**Purpose**: State management across chapter boundaries.
 
-## 8. Memory Keeper Agent
-**Purpose**: State persistence.
+## 8. Matter Agents (Front/Back)
+**Purpose**: Book packaging (TOC, Copyright, Glossary).

@@ -26,21 +26,12 @@ class LLMInterface:
         self._add_trace(prompt, response.text, model_name)
         return response.text
 
-    def embed_text(self, text: str, task_type: str = "RETRIEVAL_DOCUMENT") -> list:
-        """Get embeddings using Gemini."""
-        response = self.client.models.embed_content(
-            model="text-embedding-004",
-            contents=text,
-            config=types.EmbedContentConfig(task_type=task_type)
-        )
-        return response.embeddings[0].values
-
     def _add_trace(self, prompt, response, model):
         self.traces.append({
             "prompt": prompt,
             "response": response,
             "model": model,
-            "timestamp": str(datetime.now()) # placeholder
+            "timestamp": str(datetime.now())
         })
 
     def get_logs(self):

@@ -4,12 +4,12 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Model Settings
-PRIMARY_MODEL = os.getenv("PRIMARY_MODEL", "gemini-2.0-flash")
+PRIMARY_MODEL = os.getenv("PRIMARY_MODEL", "gemini-flash-latest")
 
 # Cost Estimation (Placeholder values)
-COST_PER_1K_TOKENS = {
-    "gemini-2.0-flash": 0.0001,
-}
+# COST_PER_1K_TOKENS = {
+#     "gemini-2.0-flash": 0.0001,
+# }
 
 # Project Paths
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

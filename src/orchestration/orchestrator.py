@@ -16,14 +16,19 @@ from src.assembler.docx_gen import DOCXGenerator
 from src.utils.rag import RAGSystem
 from src.evals.scorers import EvalScorer
 from src.utils.llm import LLMInterface
-from src.config import PRIMARY_MODEL, CHEAP_MODEL
-import json
+from src.config import PRIMARY_MODEL
+import re
+
+def clean_json(text: str) -> str:
+    """Strip markdown code blocks and whitespace."""
+    text = re.sub(r'```json\s*', '', text)
+    return text.strip()
 
 class Orchestrator:
     def __init__(self):
         self.llm = LLMInterface()
         self.planner = PlannerAgent(PRIMARY_MODEL)
-        self.researcher = ResearcherAgent(CHEAP_MODEL)
+        self.researcher = ResearcherAgent(PRIMARY_MODEL)
         self.writer = WriterAgent(PRIMARY_MODEL)
         self.humanizer = HumanizerAgent(PRIMARY_MODEL)
         self.editor = EditorAgent(PRIMARY_MODEL)
@@ -38,8 +43,16 @@ class Orchestrator:
 
     def run(self, brief: BookBrief) -> FullBook:
         # 1. Planning
-        outline_json = self.llm.call_llm(self.planner.execute(brief), PRIMARY_MODEL)
-        outline = BookOutline(**json.loads(outline_json))
+        print(f"[Planner] Planning book: {brief.topic}")
+        outline_raw = self.llm.call_llm(self.planner.execute(brief), PRIMARY_MODEL, json_mode=True)
+        outline_json = clean_json(outline_raw)
+        
+        try:
+            outline = BookOutline(**json.loads(outline_json))
+        except Exception as e:
+            print(f"[Orchestrator] Error parsing outline JSON: {e}")
+            print(f"Raw response: {outline_raw}")
+            raise
         
         book = FullBook(
             brief=brief,
