@@ -8,7 +8,7 @@ def run_test_a():
     brief = BookBrief(
         topic="Beginner's Guide to Personal Finance",
         reader_profile="Young adults and students new to financial planning",
-        length="5 chapters",
+        length="10 chapters",
         tonality=TonalityPreset.CONVERSATIONAL,
         genre="Non-fiction"
     )
