@@ -21,7 +21,7 @@ def main():
         genre=args.genre
     )
 
-    print(f"Starting AIuthor for topic: {brief.topic}")
+    print(f"Starting AIuthor for topic: {brief.topic}") 
     print(f"Tonality: {brief.tonality}")
     
     orchestrator = Orchestrator()

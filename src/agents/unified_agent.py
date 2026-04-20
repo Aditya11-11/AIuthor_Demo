@@ -84,14 +84,25 @@ class ResearcherAgent(BaseAgent):
         
         Focus on accuracy and depth. Avoid generic information. Use domain-specific metaphors and varied factual data.
         
+        ## RESEARCH FOCUS:
+        - Prioritize technical breakthroughs, specific data points, and grounded research facts.
+        - If no specific technical facts are available, shift to a thematic/philosophical perspective that is less reliant on technical "breakthroughs".
+        
         ## RULES:
         - You have to maintain the same tone and style as the book.
         - Never use the word "AIuthor" in the output.
         - Write in very creative and engaging manner without any repetition.
-        - Always be avaire of what you are writing and dont loose the flow of the book.
+        - Always be aware of what you are writing and dont lose the flow of the book.
         
         Output a list of facts with sources (if applicable) and confidence scores.
-        Format: JSON list of FactRecord objects.
+        Format: Return ONLY a JSON list of FactRecord objects. No markdown code blocks.
+        JSON Schema for FactRecord:
+        {{
+            "fact": "string",
+            "source": "string or null",
+            "confidence": 0.0 to 1.0,
+            "verified": boolean
+        }}
         """
         
         print(f"[{self.name}] Researching chapter {chapter.chapter_number}: {chapter.title}")
@@ -154,13 +165,21 @@ class MemoryKeeperAgent(BaseAgent):
         CURRENT MEMORY:
         {current_memory.json()}
         
-        TASK:
         1. Extract new facts for the Fact Registry.
         2. Identify/update characters in the Character Bible.
         3. Extract key concepts or events for the Callback Index to be used in future chapters.
         4. Log any major narrative or structural decisions.
         
-        Output the updated MemoryState in JSON.
+        Output the updated MemoryState in JSON. Ensure the output is a valid JSON object matching the schema below.
+        
+        SCHEMA:
+        {{
+            "fact_registry": [{{ "fact": "str", "source": "str", "confidence": float, "verified": bool }}],
+            "character_bible": [{{ "name": "str", "description": "str", "traits": ["str"], "arc": "str" }}],
+            "callback_index": [{{ "id": "str", "context": "str", "content": "str", "chapter_source": int, "used_in_chapters": [int] }}],
+            "tonality_fingerprint": [{{ "chapter_number": int, "lexical_density": float, "sentence_variety_score": float, "metaphor_count": int, "ai_tell_count": int, "dominant_tone": "str", "examples": ["str"] }}],
+            "decision_log": [{{ "agent_name": "str", "decision": "str", "rationale": "str", "alternatives_considered": ["str"], "timestamp": "str" }}]
+        }}
         """
         
         print(f"[{self.name}] Updating memory for chapter {chapter_number}")

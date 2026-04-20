@@ -13,8 +13,14 @@ import re
 
 def clean_json(text: str) -> str:
     """Strip markdown code blocks and whitespace."""
+    if not text:
+        return ""
     text = re.sub(r'```json\s*', '', text)
     text = re.sub(r'```\s*', '', text)
+    # Remove any leading/trailing characters that are not { or [
+    match = re.search(r'(\{.*\}|\[.*\])', text, re.DOTALL)
+    if match:
+        return match.group(1).strip()
     return text.strip()
 
 class Orchestrator:
@@ -34,17 +40,32 @@ class Orchestrator:
         self.pdf_gen = PDFGenerator()
         self.docx_gen = DOCXGenerator()
 
+    def parse_json(self, raw_text: str, default: Any = None) -> Any:
+        """Robust JSON parsing with cleaning and fallbacks."""
+        cleaned = clean_json(raw_text)
+        if not cleaned:
+            return default
+        try:
+            return json.loads(cleaned)
+        except Exception as e:
+            print(f"[Orchestrator] JSON parsing error: {e}")
+            print(f"Raw text provided: {raw_text[:200]}...")
+            return default
+
     def run(self, brief: BookBrief) -> FullBook:
-        # 1. Planning
+        #  Planning
         print(f"[Planner] Planning book: {brief.topic}")
         outline_raw = self.llm.call_llm(self.planner.execute(brief), PRIMARY_MODEL, json_mode=True)
-        outline_json = clean_json(outline_raw)
+        outline_data = self.parse_json(outline_raw)
         
+        if not outline_data:
+            print(f"[Orchestrator] Critical Error: Failed to generate book outline.")
+            raise ValueError("Failed to generate book outline.")
+            
         try:
-            outline = BookOutline(**json.loads(outline_json))
+            outline = BookOutline(**outline_data)
         except Exception as e:
-            print(f"[Orchestrator] Error parsing outline JSON: {e}")
-            print(f"Raw response: {outline_raw}")
+            print(f"[Orchestrator] Error validating outline: {e}")
             raise
         
         book = FullBook(
@@ -69,12 +90,8 @@ class Orchestrator:
             # Research with RAG
             rag_context = self.rag.query(ch_outline.title + " " + " ".join(ch_outline.key_points))
             research_json = self.llm.call_llm(self.researcher.execute(ch_outline, context=str(rag_context)))
-            try:
-                research_data = json.loads(research_json)
-                research = [FactRecord(**f) for f in research_data] if isinstance(research_data, list) else []
-            except Exception as e:
-                print(f"[Orchestrator] Research parsing failed: {e}")
-                research = []
+            research_data = self.parse_json(research_json, default=[])
+            research = [FactRecord(**f) for f in research_data] if isinstance(research_data, list) else []
             
             # Write Draft
             draft = self.llm.call_llm(self.writer.execute(ch_outline, research, book.memory, brief.tonality.value))
@@ -92,10 +109,14 @@ class Orchestrator:
             
             # Update Memory
             memory_update_json = self.llm.call_llm(self.memory_keeper.execute(edited, book.memory, ch_outline.chapter_number))
-            try:
-                book.memory = MemoryState(**json.loads(memory_update_json))
-            except Exception as e:
-                print(f"[Orchestrator] Memory update failed: {e}")
+            memory_update_data = self.parse_json(memory_update_json)
+            if memory_update_data:
+                try:
+                    book.memory = MemoryState(**memory_update_data)
+                except Exception as e:
+                    print(f"[Orchestrator] Memory validation failed: {e}")
+            else:
+                print(f"[Orchestrator] Skipping memory update due to parsing failure.")
             
             # Tonality Fingerprint (Simulated scoring for now)
             book.memory.tonality_fingerprint.append(TonalityFingerprint(
@@ -113,17 +134,18 @@ class Orchestrator:
                 chapter_number=ch_outline.chapter_number,
                 title=ch_outline.title,
                 content=edited,
-                summary=ch_outline.summary
+                summary=ch_outline.summary,
+                metadata={"research": [f.model_dump() for f in research]}
             ))
             
-        # 3. Matter Generation
-        front_json = self.llm.call_llm(self.front_matter_agent.execute(brief, outline))
-        book.front_matter = json.loads(front_json)
+        #  Matter Generation
+        front_raw = self.llm.call_llm(self.front_matter_agent.execute(brief, outline))
+        book.front_matter = self.parse_json(front_raw, default={"title": outline.title, "note": "Generated with default front matter due to parsing error."})
         
-        back_json = self.llm.call_llm(self.back_matter_agent.execute(brief, outline, book.memory))
-        book.back_matter = json.loads(back_json)
+        back_raw = self.llm.call_llm(self.back_matter_agent.execute(brief, outline, book.memory))
+        book.back_matter = self.parse_json(back_raw, default={"appendix": "Included.", "note": "Generated with default back matter due to parsing error."})
         
-        # 4. Evals Run
+        #  Evals Run
         # Final tonality check on a sample of chapters
         if book.chapters:
             sample_prose = book.chapters[0].content
@@ -133,12 +155,12 @@ class Orchestrator:
         eval_results = self.evals.check_structural_completeness(book.model_dump())
         print(f"[Evals] Structural Completeness: {eval_results}")
 
-        # 5. Assemble and Save
+        #  Assemble and Save
         print(f"[Assembler] Generating PDF and DOCX...")
         self.pdf_gen.generate(book)
         self.docx_gen.generate(book)
         
-        # 6. Final Traces Collection
+        #  Final Traces Collection
         book.traces = self.llm.get_logs()["traces"]
         
         return book
@@ -147,11 +169,11 @@ class Orchestrator:
         """Test D: Self-healing repair logic for chapter insertion."""
         print(f"[Orchestrator] Triggering self-healing repair for chapter insertion at index {inserted_chapter_index}")
         
-        # 1. Update Chapter Numbers for all subsequent chapters
+        #  Update Chapter Numbers for all subsequent chapters
         for i in range(inserted_chapter_index + 1, len(book.chapters)):
             book.chapters[i].chapter_number = i + 1
             
-        # 2. Re-run Memory Keeper for the new chapter and all subsequent ones to fix continuity
+        #  Re-run Memory Keeper for the new chapter and all subsequent ones to fix continuity
         for i in range(inserted_chapter_index, len(book.chapters)):
             ch = book.chapters[i]
             memory_update_json = self.llm.call_llm(self.memory_keeper.execute(ch.content, book.memory, ch.chapter_number))
@@ -160,7 +182,7 @@ class Orchestrator:
             except Exception:
                 pass
                 
-        # 3. Regenerate Back Matter (Glossary/Index) to include new terms
+        #  Regenerate Back Matter (Glossary/Index) to include new terms
         new_back_json = self.llm.call_llm(self.back_matter_agent.execute(book.brief, book.outline, book.memory))
         book.back_matter = json.loads(new_back_json)
         
