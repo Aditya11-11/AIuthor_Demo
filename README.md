@@ -16,12 +16,20 @@ PRIMARY_MODEL=Gemine_model
 ```
 
 ## 3. Run
+
+### Option A: Command Line
 Generate a book with a single command:
 ```bash
 python3 main.py --topic "The Future of AI" --reader "General Public" --length 3 --tonality "Motivational"
 ```
 
-## 4. System Test Suite
+### Option B: Streamlit Dashboard
+Run the interactive dashboard:
+```bash
+streamlit run app.py
+```
+
+## 4. System Test Suite (Assingment Purpose)
 AIuthor Test cases for assingment(single line execution)
 python3 test_suite.py [a|b|c|d|all]
 ```
